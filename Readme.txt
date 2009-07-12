@@ -4,6 +4,15 @@ http://aiusepsi.co.uk
 
 This code works, more or less, but the sample program isn't too user-friendly. Not all exceptions are handled, so remember your try/catch blocks!
 
+Version History:
+
+1.2 - 	Further code cleanup, project files updated to Visual Studio 2008 versions.
+	General bug fixes, and rudimentary localisation.
+
+1.1 -	Code cleanup, improved console program
+
+1.0 - 	Initial Release
+
 Licensed under the BSD License.
 http://creativecommons.org/licenses/BSD/
 

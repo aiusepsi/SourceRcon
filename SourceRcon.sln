@@ -1,9 +1,11 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 9.00
-# Visual C# Express 2005
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual C# Express 2008
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SourceRcon", "SourceRcon\SourceRcon.csproj", "{731FD57C-8B78-45C3-B1B6-D383CA134E36}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SourceRconLib", "SourceRconLib\SourceRconLib.csproj", "{6F184EA5-616C-4A08-AADE-4B171F4BBDA0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinSourceRcon", "WinSourceRcon\WinSourceRcon.csproj", "{E1E0E431-56BE-49B7-9E28-0809146014DA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -19,6 +21,10 @@ Global
 		{6F184EA5-616C-4A08-AADE-4B171F4BBDA0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6F184EA5-616C-4A08-AADE-4B171F4BBDA0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6F184EA5-616C-4A08-AADE-4B171F4BBDA0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E1E0E431-56BE-49B7-9E28-0809146014DA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E1E0E431-56BE-49B7-9E28-0809146014DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E1E0E431-56BE-49B7-9E28-0809146014DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E1E0E431-56BE-49B7-9E28-0809146014DA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

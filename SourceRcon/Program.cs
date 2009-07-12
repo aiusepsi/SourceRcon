@@ -1,98 +1,159 @@
 using System;
 using System.Net;
+using System.Collections.Generic;
 using System.Threading;
+using SourceRconLib;
 
 
 namespace SourceRcon
 {
 	/// <summary>
-	/// Summary description for Class1.
-	/// </summary>
+	/// Program class.
+    /// </summary>
 	class Program
 	{
 		/// <summary>
 		/// The main entry point for the application.
 		/// </summary>
+        /// 
 		[STAThread]
-		static void Main(string[] args)
+		static int Main(string[] args)
 		{
-            string ipaddress, password, command;
+            // Grab English strings for the interface.
+            ILanguage lang = new English();
+
+            string password, command;
+            IPAddress ip;
             int port;
 
             bool interactive;
 
+            // Parse command-line to tell if we're doing a one-shot command or if we're running interactive.
             if (args.Length > 0)
             {
+                // There are arguments, so not interactive.
+                interactive = false;
+
+                // Four arguments indicates this is a one-shot command.
                 if (args.Length == 4)
                 {
-                    interactive = false;
-                    ipaddress = args[0];
-                    port = int.Parse(args[1]);
+                    try
+                    {
+                        ip = IPAddress.Parse(args[0]);
+                        port = int.Parse(args[1]);
+                    }
+                    catch (FormatException fe)
+                    {
+                        Console.WriteLine(lang["invalidparams"], fe.Message);
+                        return -1;
+                    }
+                    catch (OverflowException oe)
+                    {
+                        Console.WriteLine(lang["invalidparams"], oe.Message);
+                        return -1;
+                    }
                     password = args[2];
                     command = args[3];
                 }
 
                 else
                 {
-                    Console.WriteLine("To use in interactive mode, use no parameters.");
-                    Console.WriteLine("Else use parameters in the form: ip port password command");
-                    Console.WriteLine("Enclose the command in \" marks if it is more than one word");
-                    Console.WriteLine("E.g. sourcercon 192.168.0.5 27015 testpass \"say Testing!\"");
-                    return;
+                    // Print out the usage instructions.
+                    Console.WriteLine(lang["usage_instructions"]);
+                    return 1;
                 }
             }
             else
             {
                 interactive = true;
-                Console.WriteLine("Enter IP Address:");
-                ipaddress = Console.ReadLine();
-                Console.WriteLine("Enter port:");
-                port = int.Parse(Console.ReadLine());
-                Console.WriteLine("Enter password:");
-                password = Console.ReadLine();
-                command = null;
-            }
 
-			SourceRcon Sr = new SourceRcon();
-			Sr.Errors += new StringOutput(ErrorOutput);
-			Sr.ServerOutput += new StringOutput(ConsoleOutput);
-
-            if (Sr.Connect(new IPEndPoint(IPAddress.Parse(ipaddress), port), password))
-			{
-				while(!Sr.Connected)
-				{
-					Thread.Sleep(10);
-				}
-                if(interactive)
+                #if DEBUG
+                Console.WriteLine("Use quick debug? Press y, else anything else!");
+                if (Console.ReadKey().KeyChar == 'y')
                 {
-                    Console.WriteLine("Ready for commands:");
-				    while(true)
-				    {
-				    	Sr.ServerCommand(Console.ReadLine());
-				    }
+                    Console.ReadLine();
+                    Console.WriteLine();
+                    ip = IPAddress.Parse("192.168.1.50");
+                    port = 27015;
+                    password = "blah";
                 }
                 else
                 {
-                    Sr.ServerCommand(command);
-                    Thread.Sleep(1000);
-                    return;
+                #endif
+
+
+                // Walk the user through entering parameters, & prevent them from entering anything invalid:
+
+                do
+                {
+                    Console.WriteLine(lang["enterip"]);
                 }
-			}
-			else
-			{
-				Console.WriteLine("No connection!");
-				Thread.Sleep(1000);
-			}
-		}
+                while (!IPAddress.TryParse(Console.ReadLine(), out ip));
 
-		static void ErrorOutput(string input)
-		{
-			Console.WriteLine("Error: {0}", input);
-		}
+                do
+                {
+                    do
+                    {
+                        Console.WriteLine(lang["enterport"]);
+                    }
+                    while (!int.TryParse(Console.ReadLine(), out port));
+                }
+                while (port < IPEndPoint.MinPort && port > IPEndPoint.MaxPort);
 
-		static void ConsoleOutput(string input)
-		{
-			Console.WriteLine("Console: {0}", input);
+                // Valve's problem to stop people breaking the server with malformed passwords, not mine!
+                Console.WriteLine(lang["enterpassword"]);
+                password = Console.ReadLine();
+
+                #if DEBUG
+                }
+                #endif
+
+                command = null;
+            }
+
+			Rcon Sr = new Rcon();
+
+            // Wire up our event handlers to receive errors from the server:
+            Sr.Errors += (MessageCode, Message) => Console.WriteLine(lang["error"], MessageCode.ToString());
+
+            bool IsConnected = false;
+
+            // Now, we'll actually try to connect!
+            try
+            {
+                IsConnected = Sr.ConnectBlocking(new IPEndPoint(ip, (int)port), password);
+            }
+            catch(ArgumentOutOfRangeException e)
+            {
+                Console.WriteLine(lang["invalidparams"], e.Message);
+                return -1;
+            }
+            
+            if (IsConnected)
+            {
+                if (interactive)
+                {
+                    Console.WriteLine(lang["commandready"]);
+                    // Just pull lines from the input and send them off.
+                    while (true)
+                    {
+                        // Sr.ServerCommand(Console.ReadLine());
+                        Console.WriteLine(Sr.ServerCommandBlocking(Console.ReadLine()));
+                    }
+                }
+                else
+                {
+                    // Fire a one-shot command.
+                    Console.WriteLine(Sr.ServerCommandBlocking(command));
+                }
+            }
+            else
+            {
+                // Not connected, so complain about it.
+                Console.WriteLine(lang["noconn"]);
+            }
+
+            return 0;
 		}
 
 	}
