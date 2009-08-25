@@ -30,7 +30,11 @@ namespace WinSourceRcon
 
         void sr_Errors(MessageCode code, string data)
         {
-            MethodInvoker m = () => { MessageBox.Show(code.ToString() + (data == null ? "" : data), "SourceRcon Error"); };
+            MethodInvoker m = () => 
+            {
+                OutputBox.SelectionColor = Color.Red;
+                OutputBox.SelectedText = "} " + code.ToString() + "\n" + (data == null ? "" : "} " + data + "\n");
+            };
             this.Invoke(m);
         }
 
@@ -67,6 +71,8 @@ namespace WinSourceRcon
         private void SendInputButton_Click(object sender, EventArgs e)
         {
             sr.ServerCommand(InputBox.Text);
+            OutputBox.SelectionColor = Color.Blue;
+            OutputBox.SelectedText = "] " + InputBox.Text + "\n";
             InputBox.Clear();
         }
 
