@@ -4,7 +4,9 @@ namespace SourceRconLib
 {
     public enum MessageCode
     {
-        ConsoleOutput, ConnectionClosed, ConnectionSuccess, ConnectionFailed, UnknownResponse, JunkPacket, TooMuchData
+        ConsoleOutput, ConnectionClosed, ConnectionSuccess, ConnectionFailed, 
+        UnknownResponse, JunkPacket, TooMuchData, CantDisconnectIfNotConnected,
+        SendCommandsWhenConnected, EmptyPacket
     }
 
     public delegate void BoolInfo(bool info);

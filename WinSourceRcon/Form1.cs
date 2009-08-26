@@ -53,6 +53,10 @@ namespace WinSourceRcon
                         SendInputButton.Enabled = true;
                         OutputBox.Enabled = true;
                         InputBox.Enabled = true;
+
+                        ConnectButton.Text = "Disconnect";
+                        ConnectButton.Click += Disconnect_Click;
+                        ConnectButton.Click -= button2_Click;
                     };
                 this.Invoke(m);
             }
@@ -66,6 +70,14 @@ namespace WinSourceRcon
             IPEndPoint ipe = new IPEndPoint(ip, port);
 
             sr.Connect(ipe, PasswordBox.Text);
+        }
+
+        private void Disconnect_Click(object sender, EventArgs e)
+        {
+            sr.Disconnect();
+            ConnectButton.Text = "Connect";
+            ConnectButton.Click += button2_Click;
+            ConnectButton.Click -= Disconnect_Click;
         }
 
         private void SendInputButton_Click(object sender, EventArgs e)

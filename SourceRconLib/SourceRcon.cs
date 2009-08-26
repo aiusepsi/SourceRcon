@@ -10,32 +10,54 @@ namespace SourceRconLib
     /// <summary>
     /// Encapsulates RCON communication with a Source server.
     /// </summary>
-    public class Rcon
+    public class Rcon : IDisposable
     {
         public event RconOutput ServerOutput;
         public event RconOutput Errors;
         public event BoolInfo ConnectionSuccess;
-
-        Socket S;
-
-        int RequestIDCounter;
-
-        void Reset()
-        {
-            S = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            PacketCount = 0;
-            RequestIDCounter = 0;
-        }
 
         /// <summary>
         /// Constructor.
         /// </summary>
         public Rcon()
         {
+            rconSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            Reset();
 
-#if DEBUG
-			    TempPackets = new ArrayList();
-#endif
+            #if DEBUG
+                TempPackets = new ArrayList();
+            #endif
+        }
+
+        #region IDisposable Members
+
+        bool Disposed;
+        public void Dispose()
+        {
+            if (!Disposed)
+            {
+                rconSocket.Close();
+            }
+
+            Disposed = true;
+        }
+
+        #endregion
+
+        bool disconnected;
+        public void Disconnect()
+        {
+            if (connected)
+            {
+                connected = false;
+                disconnected = true;
+
+                rconSocket.Disconnect(false);
+            }
+            else
+            {
+                OnError(MessageCode.CantDisconnectIfNotConnected, null);
+            }
         }
 
         /// <summary>
@@ -43,13 +65,23 @@ namespace SourceRconLib
         /// </summary>
         /// <param name="Server">The IPEndpoint of the server to contact.</param>
         /// <param name="password">RCON password.</param>
-        /// <returns>True if connection successful, false otherwise.</returns>
         public void Connect(IPEndPoint Server, string password)
         {
+            if(Disposed)
+            {
+                OnError(MessageCode.ConnectionFailed, "Already disposed");
+                return;
+            }
+
+            if (disconnected)
+            {
+                OnError(MessageCode.ConnectionFailed, "Previously disconnected");
+                return;
+            }
+
             try
             {
-                Reset();
-                S.Connect(Server);
+                rconSocket.Connect(Server);
             }
             catch (SocketException)
             {
@@ -57,6 +89,8 @@ namespace SourceRconLib
                 OnConnectionSuccess(false);
                 return;
             }
+
+            Reset();
 
             RCONPacket ServerAuthPacket = new RCONPacket();
 
@@ -69,7 +103,7 @@ namespace SourceRconLib
             SendRCONPacket(ServerAuthPacket);
 
             //Start the listening loop, now that we've sent auth packet, we should be expecting a reply.
-            GetPacketFromServer();
+            GetNewPacketFromServer();
         }
 
         public bool ConnectBlocking(IPEndPoint Server, string password)
@@ -101,6 +135,10 @@ namespace SourceRconLib
                 PacketToSend.String1 = command;
                 SendRCONPacket(PacketToSend);
             }
+            else
+            {
+                OnError(MessageCode.SendCommandsWhenConnected, null);
+            }
         }
 
         public string ServerCommandBlocking(string command)
@@ -119,10 +157,35 @@ namespace SourceRconLib
             return s;
         }
 
+        // End of public interface.
+        // The guts start here.
+
+        Socket rconSocket;
+        int RequestIDCounter;
+        int PacketCount;
+
+        #if DEBUG
+            public ArrayList TempPackets;
+        #endif
+
+        void Reset()
+        {
+            PacketCount = 0;
+            RequestIDCounter = 0;
+        }
+
         void SendRCONPacket(RCONPacket p)
         {
             byte[] Packet = p.OutputAsBytes();
-            S.BeginSend(Packet, 0, Packet.Length, SocketFlags.None, new AsyncCallback(SendCallback), this);
+            try
+            {
+                rconSocket.BeginSend(Packet, 0, Packet.Length, SocketFlags.None, new AsyncCallback(SendCallback), this);
+            }
+            catch(SocketException se)
+            {
+                OnError(MessageCode.ConnectionClosed, se.Message);
+                Disconnect();
+            }
         }
 
         bool connected;
@@ -133,62 +196,70 @@ namespace SourceRconLib
 
         void SendCallback(IAsyncResult ar)
         {
-            S.EndSend(ar);
+            try
+            {
+                rconSocket.EndSend(ar);
+            }
+            catch (SocketException se)
+            {
+                OnError(MessageCode.ConnectionClosed, se.Message);
+                Disconnect();
+            }
         }
 
-        int PacketCount;
-
-        void GetPacketFromServer()
+        void GetNewPacketFromServer()
         {
+            // Prepare the state information for a new packet.
             PacketState state = new PacketState();
             state.IsPacketLength = true;
             state.Data = new byte[4];
             state.PacketCount = PacketCount;
             PacketCount++;
 
-#if DEBUG
+            // If we're debugging, log the packetstate.
+            // Can use this to trace the packets later.
+            #if DEBUG
 			    TempPackets.Add(state);
-#endif
+            #endif
 
             try
             {
-                S.BeginReceive(state.Data, 0, 4, SocketFlags.None, new AsyncCallback(ReceiveCallback), state);
+                rconSocket.BeginReceive(state.Data, 0, 4, SocketFlags.None, new AsyncCallback(ReceiveCallback), state);
             }
             catch (SocketException se)
             {
                 OnError(MessageCode.ConnectionFailed, se.Message);
+                Disconnect();
             }
         }
 
-#if DEBUG
-		public ArrayList TempPackets;
-#endif
-
         void ReceiveCallback(IAsyncResult ar)
         {
-            bool recsuccess = false;
             PacketState state = null;
 
             try
             {
-                int bytesgotten = S.EndReceive(ar);
+                int bytesreceived = rconSocket.EndReceive(ar);
                 state = (PacketState)ar.AsyncState;
-                state.BytesSoFar += bytesgotten;
-                recsuccess = true;
+                state.BytesSoFar += bytesreceived;
 
-#if DEBUG
+                #if DEBUG
 			        Console.WriteLine("Receive Callback. Packet: {0} First packet: {1}, Bytes so far: {2}",
                                         state.PacketCount,state.IsPacketLength,state.BytesSoFar);
-#endif
+                #endif
+
+                // Spin the processing of this data off into another thread.
+                ThreadPool.QueueUserWorkItem((object pool_state) =>
+                {
+                    ProcessIncomingData(state);
+                });
 
             }
-            catch (SocketException)
+            catch (SocketException se)
             {
-                OnError(MessageCode.ConnectionClosed, null);
+                OnError(MessageCode.ConnectionClosed, se.Message);
+                Disconnect();
             }
-
-            if (recsuccess)
-                ProcessIncomingData(state);
         }
 
         void ProcessIncomingData(PacketState state)
@@ -201,32 +272,57 @@ namespace SourceRconLib
                 state.IsPacketLength = false;
                 state.BytesSoFar = 0;
                 state.Data = new byte[state.PacketLength];
-                S.BeginReceive(state.Data, 0, state.PacketLength, SocketFlags.None, new AsyncCallback(ReceiveCallback), state);
-            }
-            else
-            {
-                // Do something with data...
 
-                if (state.BytesSoFar < state.PacketLength)
+                if (state.PacketLength > 0)
                 {
-                    // Missing data.
-                    S.BeginReceive(state.Data, state.BytesSoFar, state.PacketLength - state.BytesSoFar, SocketFlags.None, new AsyncCallback(ReceiveCallback), state);
+                    StartToReceive(state);
                 }
                 else
                 {
-                    // Process data.
-#if DEBUG
+                    OnError(MessageCode.EmptyPacket, null);
+                    // Treat as a fatal error?
+                    Disconnect();
+                }
+            }
+            else
+            {
+                // This is a fragment of a complete packet.
+                if (state.BytesSoFar < state.PacketLength)
+                {
+                    // We don't have all the data, ask the network for the rest.
+                    StartToReceive(state);
+                }
+                else
+                {
+                    // This is the whole packet, so we can go ahead and pack it up into a structure and then punt it upstairs.
+                    #if DEBUG
 					    Console.WriteLine("Complete packet.");
-#endif
+                    #endif
 
-                    RCONPacket RetPack = new RCONPacket();
-                    RetPack.ParseFromBytes(state.Data, this);
+                    RCONPacket ReturnedPacket = new RCONPacket();
+                    ReturnedPacket.ParseFromBytes(state.Data, this);
 
-                    ProcessResponse(RetPack);
+                    ThreadPool.QueueUserWorkItem((object pool_state) =>
+                    {
+                        ProcessResponse(ReturnedPacket);
+                    });
 
                     // Wait for new packet.
-                    GetPacketFromServer();
+                    GetNewPacketFromServer();
                 }
+            }
+        }
+
+        void StartToReceive(PacketState state)
+        {
+            try
+            {
+                rconSocket.BeginReceive(state.Data, state.BytesSoFar, state.PacketLength - state.BytesSoFar, SocketFlags.None, new AsyncCallback(ReceiveCallback), state);
+            }
+            catch (SocketException se)
+            {
+                OnError(MessageCode.ConnectionClosed, se.Message);
+                Disconnect();
             }
         }
 
@@ -249,6 +345,7 @@ namespace SourceRconLib
                         OnConnectionSuccess(false);
                     }
                     break;
+
                 case RCONPacket.SERVERDATA_rec.SERVERDATA_RESPONSE_VALUE:
                     if (hadjunkpacket)
                     {
