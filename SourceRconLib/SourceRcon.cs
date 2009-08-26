@@ -40,6 +40,8 @@ namespace SourceRconLib
             }
 
             Disposed = true;
+            disconnected = true;
+            connected = false;
         }
 
         #endregion
@@ -243,10 +245,10 @@ namespace SourceRconLib
                 state = (PacketState)ar.AsyncState;
                 state.BytesSoFar += bytesreceived;
 
-                #if DEBUG
-			        Console.WriteLine("Receive Callback. Packet: {0} First packet: {1}, Bytes so far: {2}",
-                                        state.PacketCount,state.IsPacketLength,state.BytesSoFar);
-                #endif
+#if DEBUG
+                Console.WriteLine("Receive Callback. Packet: {0} First packet: {1}, Bytes so far: {2}",
+                                    state.PacketCount, state.IsPacketLength, state.BytesSoFar);
+#endif
 
                 // Spin the processing of this data off into another thread.
                 ThreadPool.QueueUserWorkItem((object pool_state) =>
@@ -259,6 +261,10 @@ namespace SourceRconLib
             {
                 OnError(MessageCode.ConnectionClosed, se.Message);
                 Disconnect();
+            }
+            catch (ObjectDisposedException ode)
+            {
+                OnError(MessageCode.AlreadyDisposed, ode.Message);
             }
         }
 

@@ -73,7 +73,7 @@ namespace SourceRcon
                 {
                     Console.ReadLine();
                     Console.WriteLine();
-                    ip = IPAddress.Parse("192.168.1.50");
+                    ip = IPAddress.Parse("192.168.2.6");
                     port = 27015;
                     password = "blah";
                 }
@@ -111,49 +111,52 @@ namespace SourceRcon
                 command = null;
             }
 
-			Rcon Sr = new Rcon();
-
-            // Wire up our event handlers to receive errors from the server:
-            Sr.Errors += (MessageCode, Message) => Console.WriteLine(lang["error"], MessageCode.ToString());
-
-            bool IsConnected = false;
-
-            // Now, we'll actually try to connect!
-            try
+            using (Rcon Sr = new Rcon())
             {
-                IsConnected = Sr.ConnectBlocking(new IPEndPoint(ip, (int)port), password);
-            }
-            catch(ArgumentOutOfRangeException e)
-            {
-                Console.WriteLine(lang["invalidparams"], e.Message);
-                return -1;
-            }
-            
-            if (IsConnected)
-            {
-                if (interactive)
+                #if DEBUG
+                // Wire up our event handlers to receive errors from the server:
+                Sr.Errors += (MessageCode, Message) => Console.WriteLine(lang["error"], MessageCode.ToString());
+                #endif
+
+                bool IsConnected = false;
+
+                // Now, we'll actually try to connect!
+                try
                 {
-                    Console.WriteLine(lang["commandready"]);
-                    // Just pull lines from the input and send them off.
-                    while (true)
+                    IsConnected = Sr.ConnectBlocking(new IPEndPoint(ip, (int)port), password);
+                }
+                catch (ArgumentOutOfRangeException e)
+                {
+                    Console.WriteLine(lang["invalidparams"], e.Message);
+                    return -1;
+                }
+
+                if (IsConnected)
+                {
+                    if (interactive)
                     {
-                        // Sr.ServerCommand(Console.ReadLine());
-                        Console.WriteLine(Sr.ServerCommandBlocking(Console.ReadLine()));
+                        Console.WriteLine(lang["commandready"]);
+                        // Just pull lines from the input and send them off.
+                        while (true)
+                        {
+                            // Sr.ServerCommand(Console.ReadLine());
+                            Console.WriteLine(Sr.ServerCommandBlocking(Console.ReadLine()));
+                        }
+                    }
+                    else
+                    {
+                        // Fire a one-shot command.
+                        Console.WriteLine(Sr.ServerCommandBlocking(command));
                     }
                 }
                 else
                 {
-                    // Fire a one-shot command.
-                    Console.WriteLine(Sr.ServerCommandBlocking(command));
+                    // Not connected, so complain about it.
+                    Console.WriteLine(lang["noconn"]);
                 }
-            }
-            else
-            {
-                // Not connected, so complain about it.
-                Console.WriteLine(lang["noconn"]);
-            }
 
-            return 0;
+                return 0;
+            }
 		}
 
 	}

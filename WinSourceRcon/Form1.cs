@@ -98,5 +98,18 @@ namespace WinSourceRcon
             }
         }
 
+        private void button1_Click(object sender, EventArgs e)
+        {
+            sr.Dispose();
+        }
+
+        private void button2_Click_1(object sender, EventArgs e)
+        {
+            sr = new Rcon();
+            sr.ConnectionSuccess += new BoolInfo(sr_ConnectionSuccess);
+            sr.ServerOutput += new RconOutput(sr_ServerOutput);
+            sr.Errors += new RconOutput(sr_Errors);
+        }
+
     }
 }
