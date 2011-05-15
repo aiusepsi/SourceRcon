@@ -276,10 +276,10 @@ namespace SourceRcon
 			byte[] bstring1;
 			byte[] bstring2;
 
-			ASCIIEncoding Ascii = new ASCIIEncoding();
+            UTF8Encoding utf = new UTF8Encoding();
 			
-			bstring1 = Ascii.GetBytes(String1);
-			bstring2 = Ascii.GetBytes(String2);
+			bstring1 = utf.GetBytes(String1);
+			bstring2 = utf.GetBytes(String2);
 
 			serverdata = BitConverter.GetBytes((int)ServerDataSent);
 			reqid = BitConverter.GetBytes(RequestId);
@@ -317,7 +317,7 @@ namespace SourceRcon
 		{
 			int BPtr = 0;
 			ArrayList stringcache;
-			ASCIIEncoding Ascii = new ASCIIEncoding();
+            UTF8Encoding utf = new UTF8Encoding();
 
 			// First 4 bytes are ReqId.
 			RequestId = BitConverter.ToInt32(bytes,BPtr);
@@ -332,7 +332,7 @@ namespace SourceRcon
 				stringcache.Add(bytes[BPtr]);
 				BPtr++;
 			}
-			String1 = Ascii.GetString((byte[])stringcache.ToArray(typeof(byte)));
+			String1 = utf.GetString((byte[])stringcache.ToArray(typeof(byte)));
 			BPtr++;
 
 			// string2 till /0
@@ -343,7 +343,7 @@ namespace SourceRcon
 				stringcache.Add(bytes[BPtr]);
 				BPtr++;
 			}
-			String2 = Ascii.GetString((byte[])stringcache.ToArray(typeof(byte)));
+			String2 = utf.GetString((byte[])stringcache.ToArray(typeof(byte)));
 			BPtr++;
 
 			// Repeat if there's more data?
