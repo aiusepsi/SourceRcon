@@ -1,8 +1,16 @@
 SourceRcon Example in C#
-Copyright Andrew Simpson 2008
+Copyright Andrew Simpson 2008-2011
 http://aiusepsi.co.uk
 
 This code works, more or less, but the sample program isn't too user-friendly. Not all exceptions are handled, so remember your try/catch blocks!
+
+Version History:
+
+1.1.1	Switched from ASCII to UTF8 encoding (Thanks, Namolem)
+
+1.1.0 	Code cleanup, improved console program
+
+1.0.0 	Initial Release
 
 Licensed under the BSD License.
 http://creativecommons.org/licenses/BSD/
